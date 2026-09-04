@@ -1,0 +1,13 @@
+# Driver backups
+*_Original.dll
+*.bak
+*.orig
+
+# Logs & temp files
+*.log
+*.tmp
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
