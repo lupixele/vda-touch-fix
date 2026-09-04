@@ -1,8 +1,6 @@
 # ==============================================================================
 # StarDesk SDIddDriver Binary Patcher
-# - Fixes Windows 11 Touch Keyboard docking (patches physical size to 38x21 cm)
-# - Injects custom 2214x1080 resolution @ 120Hz, 90Hz, and 60Hz (CVT-RB DTDs)
-# - Generates local Code-Signing certificate & signs patched driver
+# Permanently docks Windows 11 Touch Keyboard by patching SDIddDriver EDID
 # ==============================================================================
 
 param(
@@ -26,7 +24,7 @@ if (-not (Test-Admin)) {
 }
 
 Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "  StarDesk Driver Patcher (Touch Fix & 2214x1080 Res) " -ForegroundColor Cyan
+Write-Host "  StarDesk Driver Patcher (Touch Keyboard Fix)        " -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -93,19 +91,11 @@ if (-not (Test-Path $backupDll)) {
 }
 
 # 4. Binary patch the EDID blocks
-Write-Host "[4/6] Patching EDID blocks (38x21 cm + 2214x1080 @ 120Hz/90Hz/60Hz)..." -ForegroundColor Yellow
+Write-Host "[4/6] Patching EDID dimensions (38 cm x 21 cm)..." -ForegroundColor Yellow
 $bytes = [System.IO.File]::ReadAllBytes($targetDll)
 
 # Standard EDID Header
 $search = [byte[]](0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00)
-
-# CVT-RB Detailed Timing Descriptors for 2214x1080
-# 120Hz: Pixel Clock 320.21 MHz
-$dtd120 = [byte[]](0x15, 0x7D, 0xA6, 0xA0, 0x80, 0x38, 0x2C, 0x40, 0x30, 0x20, 0x35, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1A)
-# 90Hz: Pixel Clock 240.15 MHz
-$dtd90  = [byte[]](0xCF, 0x5D, 0xA6, 0xA0, 0x80, 0x38, 0x2C, 0x40, 0x30, 0x20, 0x35, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1A)
-# 60Hz: Pixel Clock 160.10 MHz
-$dtd60  = [byte[]](0x8A, 0x3E, 0xA6, 0xA0, 0x80, 0x38, 0x2C, 0x40, 0x30, 0x20, 0x35, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1A)
 
 $patchedCount = 0
 for ($i = 0; $i -le $bytes.Length - 128; $i++) {
@@ -122,20 +112,11 @@ for ($i = 0; $i -le $bytes.Length - 128; $i++) {
         if ($bytes[$i + 18] -eq 1) {
             Write-Host "      Found EDID block at offset: $i" -ForegroundColor Cyan
             
-            # 1. Patch physical dimensions: 38 cm x 21 cm
+            # Patch physical dimensions: 38 cm x 21 cm
             $bytes[$i + 21] = 0x26
             $bytes[$i + 22] = 0x15
             
-            # 2. Inject 2214x1080 @ 120Hz into Descriptor 2 (offset 72..89)
-            [Array]::Copy($dtd120, 0, $bytes, $i + 72, 18)
-            
-            # 3. Inject 2214x1080 @ 90Hz into Descriptor 3 (offset 90..107)
-            [Array]::Copy($dtd90, 0, $bytes, $i + 90, 18)
-            
-            # 4. Inject 2214x1080 @ 60Hz into Descriptor 4 (offset 108..125)
-            [Array]::Copy($dtd60, 0, $bytes, $i + 108, 18)
-            
-            # 5. Recalculate EDID checksum at byte 127
+            # Recalculate EDID checksum at byte 127
             $sum = 0
             for ($k = 0; $k -lt 127; $k++) {
                 $sum += $bytes[$i + $k]
@@ -201,8 +182,7 @@ Write-Host "  SUCCESS! StarDesk has been patched and reinstalled. " -ForegroundC
 Write-Host "======================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Patched capabilities:" -ForegroundColor Cyan
-Write-Host "  [+] Touch Keyboard Fix: 38x21 cm physical size (docking unlocked)"
-Write-Host "  [+] Custom Resolution: 2214x1080 @ 120Hz, 90Hz, and 60Hz"
+Write-Host "  [+] Touch Keyboard Fix: 38x21 cm physical size (permanent docking)"
 Write-Host ""
 Write-Host "You can now launch StarDesk and connect your device."
 Write-Host ""

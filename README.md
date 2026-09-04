@@ -1,23 +1,17 @@
-# Virtual Display Adapter Touch Keyboard Fix & Resolution Patcher (`vda-touch-fix`)
+# Virtual Display Adapter Touch Keyboard Fix (`vda-touch-fix`)
 
-This repository contains automated binary patchers for popular Windows Virtual Display Drivers (**Apollo / SudoVDA** and **StarDesk / SDIddDriver**).
+This repository contains automated binary patchers for Windows Virtual Display Drivers (**Apollo / SudoVDA** and **StarDesk / SDIddDriver**).
 
 ---
 
 ## What This Fixes
 
-### 1. Windows 11 Touch Keyboard Undocking / Floating Bug
+### Windows 11 Touch Keyboard Undocking / Floating Bug
 On Windows 11, the virtual touch keyboard will refuse to stay docked and forcibly switch into floating / mini / split mode if the display's physical dimensions in EDID are too large (e.g. `70 cm x 39 cm` or `0 cm x 0 cm`).
 - Standard registry `EDID_OVERRIDE` hacks fail because virtual display drivers dynamically inject their own hardcoded EDID firmware blocks on connection.
 - These patchers directly modify the driver's binary EDID to report **38 cm x 21 cm** (`0x26` x `0x15`), permanently docking the Windows 11 Touch Keyboard.
 
-### 2. Custom Resolution Support (StarDesk)
-Adds native support for **2214 x 1080** custom resolution at:
-- **120 Hz** (CVT-RB, 320.21 MHz pixel clock)
-- **90 Hz** (CVT-RB, 240.15 MHz pixel clock)
-- **60 Hz** (CVT-RB, 160.10 MHz pixel clock)
-
-### 3. Native Driver Signing (No Test-Signing Watermark Required)
+### Native Driver Signing (No Test-Signing Watermark Required)
 Because these are User-Mode Driver Framework (UMDF) drivers, they do not require Microsoft Hardware Dev Center EV certification. The patchers automatically:
 - Generate a local Authenticode Code-Signing certificate.
 - Install the certificate into `LocalMachine\Root` and `LocalMachine\TrustedPublisher`.
@@ -60,11 +54,10 @@ vda-touch-fix/
 4. The script will:
    - Back up `SDIddDriver.dll` to `SDIddDriver_Original.dll`.
    - Patch physical dimensions to `38x21 cm`.
-   - Inject CVT-RB Detailed Timing Descriptors for `2214x1080` @ 120Hz, 90Hz, and 60Hz.
    - Recompute the EDID 128-byte block checksums.
    - Sign `SDIddDriver.dll` with a trusted local certificate.
    - Reinstall the driver via `pnputil` and restart `StarDeskService`.
-5. Launch StarDesk and select the `2214x1080` resolution from Windows Display Settings.
+5. Launch StarDesk and connect your device.
 
 ---
 
