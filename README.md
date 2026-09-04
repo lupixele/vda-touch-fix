@@ -1,4 +1,4 @@
-# Virtual Display Adapter Touch Keyboard Fix (`vda-touch-fix`)
+# Virtual Display Adapter Touch Keyboard Fix
 
 This repository contains automated binary patchers for Windows Virtual Display Drivers (**Apollo / SudoVDA** and **StarDesk / SDIddDriver**).
 
