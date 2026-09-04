@@ -4,7 +4,7 @@ This repository contains automated binary patchers for popular Windows Virtual D
 
 ---
 
-## 🎯 What This Fixes
+## What This Fixes
 
 ### 1. Windows 11 Touch Keyboard Undocking / Floating Bug
 On Windows 11, the virtual touch keyboard will refuse to stay docked and forcibly switch into floating / mini / split mode if the display's physical dimensions in EDID are too large (e.g. `70 cm x 39 cm` or `0 cm x 0 cm`).
@@ -26,7 +26,7 @@ Because these are User-Mode Driver Framework (UMDF) drivers, they do not require
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 vda-touch-fix/
@@ -38,7 +38,7 @@ vda-touch-fix/
 
 ---
 
-## 🚀 How to Run
+## How to Run
 
 ### Apollo (SudoVDA)
 1. Close the Apollo application.
@@ -68,7 +68,7 @@ vda-touch-fix/
 
 ---
 
-## 🔄 Reverting to Stock Drivers
+## Reverting to Stock Drivers
 Both scripts automatically create `_Original.dll` backups prior to patching. To restore stock behavior:
 - Restore the original DLL:
   ```powershell
