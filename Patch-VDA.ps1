@@ -131,12 +131,26 @@ function Apply-ApolloStabilityFix {
             $conf = Get-Content $confPath -Raw
             if ($conf -match "(?m)^adapter_name\s*=") {
                 $conf = $conf -replace "(?m)^adapter_name\s*=.*$", "adapter_name = $GpuName"
-                Set-Content -Path $confPath -Value $conf -NoNewline
-                Write-Host "  [+] Updated adapter_name in $confPath" -ForegroundColor Green
             } else {
-                Add-Content -Path $confPath -Value "`nadapter_name = $GpuName"
-                Write-Host "  [+] Added adapter_name to $confPath" -ForegroundColor Green
+                $conf += "`nadapter_name = $GpuName"
             }
+            Write-Host "  [+] Configured adapter_name in $confPath" -ForegroundColor Green
+
+            if ($conf -match "(?m)^dd_configuration_option\s*=") {
+                $conf = $conf -replace "(?m)^dd_configuration_option\s*=.*$", "dd_configuration_option = ensure_only_display"
+            } else {
+                $conf += "`ndd_configuration_option = ensure_only_display"
+            }
+            Write-Host "  [+] Configured dd_configuration_option = ensure_only_display (auto disable host screen)" -ForegroundColor Green
+
+            if ($conf -match "(?m)^dd_config_revert_on_disconnect\s*=") {
+                $conf = $conf -replace "(?m)^dd_config_revert_on_disconnect\s*=.*$", "dd_config_revert_on_disconnect = enabled"
+            } else {
+                $conf += "`ndd_config_revert_on_disconnect = enabled"
+            }
+            Write-Host "  [+] Configured dd_config_revert_on_disconnect = enabled" -ForegroundColor Green
+
+            Set-Content -Path $confPath -Value $conf.Trim() -NoNewline
         }
     }
 
