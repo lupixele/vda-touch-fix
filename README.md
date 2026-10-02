@@ -79,9 +79,12 @@ vda-touch-fix/
  [6] StarDesk: Restore Stock Original SDIddDriver
      - Restores original unpatched SDIddDriver.dll from backup
 
- [7] Fix StarDesk Background Interference (Disables physical screen hijacking)
-     - Stops StarDeskService & StarDeskServer.exe from auto-enabling physical monitor
-     - Sets StarDeskService to Manual startup & injects global_prep_cmd into Apollo
+ [7] StarDesk: Patch Display Hijack (Keep BOTH Apollo & StarDesk Running)
+     - Binary patches StarDeskServer.exe so it never forces physical screen back on
+     - StarDeskService remains Automatic & active 24/7 without breaking Apollo
+
+ [8] StarDesk: Restore Stock Original StarDeskServer.exe
+     - Restores original unpatched StarDeskServer.exe from backup
 
  [0] Exit
 ==========================================================================
@@ -91,7 +94,7 @@ vda-touch-fix/
 
 You can also run the script directly with options:
 ```powershell
-# Run Apollo full fix
+# Run Apollo full fix (automatically patches both drivers & keeps both services running)
 .\Patch-VDA.ps1 -Option 1
 
 # Run Apollo display stability fix only
@@ -103,14 +106,18 @@ You can also run the script directly with options:
 # Run StarDesk touch patch
 .\Patch-VDA.ps1 -Option 5
 
-# Fix StarDesk background interference
+# Patch StarDesk display hijack (keeps both Apollo & StarDesk running concurrently)
 .\Patch-VDA.ps1 -Option 7
+
+# Restore StarDesk stock StarDeskServer.exe
+.\Patch-VDA.ps1 -Option 8
 ```
 
 ---
 
 ## Reverting to Stock Drivers
 
-The script automatically creates `_Original.dll` backups prior to patching:
-- Select **Option 4** to restore the Apollo stock driver.
-- Select **Option 6** to restore the StarDesk stock driver.
+The script automatically creates `_Original` backups prior to patching:
+- Select **Option 4** to restore the Apollo stock SudoVDA driver.
+- Select **Option 6** to restore the StarDesk stock SDIddDriver.
+- Select **Option 8** to restore the stock `StarDeskServer.exe`.
