@@ -12,9 +12,10 @@ On Windows 11, the virtual touch keyboard will refuse to stay docked and forcibl
 - This patcher directly modifies the driver's binary EDID to report **38 cm x 21 cm** (`0x26` x `0x15`), permanently docking the Windows 11 Touch Keyboard.
 
 ### 2. Apollo Single Display Rollback to Extend
-When switching Windows display settings to "Show only on 2" (disabling the host physical monitor and streaming exclusively to the virtual display), the stream would glitch and revert back to "Extend" mode.
-- **Root Cause:** SudoVDA has a default 3-second watchdog timer. During display re-enumeration, brief DXGI frame submission stalls cause SudoVDA to tear down the virtual display. With 0 active displays left, Windows emergency-recovers the physical panel and defaults the topology to Extend.
-- **Fix:** Sets `watchdog = 0` in `HKLM:\SOFTWARE\SudoMaker\SudoVDA` (disables driver teardown timeout), binds SudoVDA to the detected primary dGPU (`gpuName`), and pins `adapter_name` in `sunshine.conf`.
+When switching Windows display settings to "Show only on 2" (disabling the host physical monitor and streaming exclusively to the virtual display), the stream would glitch and revert back to "Extend" mode after ~1.9 seconds.
+- **Root Cause 1 (SudoVDA Watchdog):** SudoVDA has a default 3-second watchdog timer. During display re-enumeration, brief DXGI frame submission stalls cause SudoVDA to tear down the virtual display if unmanaged.
+- **Root Cause 2 (StarDesk Background Watchdog Conflict):** If StarDesk is installed, its background service (`StarDeskService` -> `StarDeskServer.exe`) runs a hidden `monitor_window_` listening to `WM_DISPLAYCHANGE`. Whenever Apollo disables the internal laptop screen, StarDeskServer detects the screen is off without an active StarDesk session and immediately executes `monitor_control.cpp:343 physical_display_enable result=success`, forcing Windows to re-enable `DISPLAY1` and resetting the topology to Extend. Apollo's DXGI capture loses access and is forced back to Extend mode.
+- **Fix:** Sets `watchdog = 0` in `HKLM:\SOFTWARE\SudoMaker\SudoVDA`, binds SudoVDA to the primary dGPU (`gpuName`), sets `StarDeskService` startup type to `Manual`, and injects an elevated `global_prep_cmd` into `sunshine.conf` to automatically suspend StarDesk during Apollo streaming sessions.
 
 ### 3. Native Driver Signing (No Test-Signing Watermark Required)
 Because these are User-Mode Driver Framework (UMDF) drivers, they do not require Microsoft Hardware Dev Center EV certification. The patcher automatically:
@@ -54,11 +55,13 @@ vda-touch-fix/
      - Patches SudoVDA.dll EDID dimensions to 38x21 cm (permanent touch keyboard docking)
      - Disables SudoVDA 3-sec watchdog timeout (watchdog=0) to prevent Extend rollback
      - Locks SudoVDA & Apollo to primary dGPU (sunshine.conf adapter_name)
+     - Resolves StarDesk background display hijacking & configures global_prep_cmd
      - Re-signs and reinstalls driver cleanly via nefconc
 
  [2] Apollo: Display Stability Fix Only (No Driver Recompile)
      - Disables SudoVDA watchdog (watchdog=0) in HKLM:\SOFTWARE\SudoMaker\SudoVDA
      - Binds dedicated GPU in registry and sunshine.conf
+     - Resolves StarDesk background display hijacking & configures global_prep_cmd
      - Fixes 'Show only on 2' / single virtual display reverting to Extend
      - Restarts ApolloService / Apollo
 
@@ -75,6 +78,10 @@ vda-touch-fix/
 
  [6] StarDesk: Restore Stock Original SDIddDriver
      - Restores original unpatched SDIddDriver.dll from backup
+
+ [7] Fix StarDesk Background Interference (Disables physical screen hijacking)
+     - Stops StarDeskService & StarDeskServer.exe from auto-enabling physical monitor
+     - Sets StarDeskService to Manual startup & injects global_prep_cmd into Apollo
 
  [0] Exit
 ==========================================================================
@@ -95,6 +102,9 @@ You can also run the script directly with options:
 
 # Run StarDesk touch patch
 .\Patch-VDA.ps1 -Option 5
+
+# Fix StarDesk background interference
+.\Patch-VDA.ps1 -Option 7
 ```
 
 ---

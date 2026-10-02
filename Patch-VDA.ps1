@@ -12,7 +12,7 @@
 [CmdletBinding()]
 param(
     [switch]$Elevated,
-    [ValidateSet("1", "2", "3", "4", "5", "6", "ApolloFull", "ApolloStability", "ApolloTouch", "ApolloRestore", "StarDeskTouch", "StarDeskRestore")]
+    [ValidateSet("1", "2", "3", "4", "5", "6", "7", "ApolloFull", "ApolloStability", "ApolloTouch", "ApolloRestore", "StarDeskTouch", "StarDeskRestore", "FixStarDeskConflict")]
     [string]$Option,
     [string]$DriverDir
 )
@@ -154,7 +154,10 @@ function Apply-ApolloStabilityFix {
         }
     }
 
-    # 3. Restart Apollo Service/Processes to reload configuration
+    # 3. Resolve StarDesk background display hijacking
+    Fix-StarDeskDisplayConflict
+
+    # 4. Restart Apollo Service/Processes to reload configuration
     Write-Host "  [+] Restarting Apollo services..." -ForegroundColor Yellow
     Stop-Process -Name "sunshine", "sunshinesvc" -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
@@ -168,6 +171,49 @@ function Apply-ApolloStabilityFix {
         if (Test-Path $sunshineExe) {
             Start-Process -FilePath $sunshineExe -WindowStyle Hidden
             Write-Host "  [+] Started sunshine.exe in background." -ForegroundColor Green
+        }
+    }
+}
+
+function Fix-StarDeskDisplayConflict {
+    Write-Host "--- Resolving StarDesk Background Display Hijacking ---" -ForegroundColor Cyan
+    
+    $sdSvc = Get-Service -Name "StarDeskService" -ErrorAction SilentlyContinue
+    if ($sdSvc) {
+        Write-Host "  [!] Detected StarDeskService on system." -ForegroundColor Yellow
+        Write-Host "      StarDeskServer.exe intercepts WM_DISPLAYCHANGE and forcefully re-enables" -ForegroundColor Gray
+        Write-Host "      the physical display (monitor_control.cpp:343 physical_display_enable)," -ForegroundColor Gray
+        Write-Host "      breaking Apollo's 'Show only on 2' and forcing Windows back to Extend." -ForegroundColor Gray
+        
+        # 1. Change service to Manual startup so it doesn't auto-start with Windows
+        Set-Service -Name "StarDeskService" -StartupType Manual -ErrorAction SilentlyContinue
+        Write-Host "  [+] Set StarDeskService startup type to Manual (won't auto-start on boot)." -ForegroundColor Green
+
+        # 2. Stop active service and running server processes
+        Stop-Service -Name "StarDeskService" -Force -ErrorAction SilentlyContinue
+        Stop-Process -Name "StarDeskServer", "StarDeskHealthd" -Force -ErrorAction SilentlyContinue
+        Write-Host "  [+] Stopped background StarDeskService and monitor watchdog processes." -ForegroundColor Green
+    } else {
+        Write-Host "  [+] StarDeskService is not installed or already removed." -ForegroundColor Green
+    }
+
+    # 3. Add global_prep_cmd in sunshine.conf to automatically halt StarDesk while Apollo streams
+    $confPaths = @(
+        "C:\Program Files\Apollo\config\sunshine.conf",
+        "P:\Program Files\Apollo\config\sunshine.conf"
+    )
+    $prepCmdStr = 'global_prep_cmd = [{"do":"cmd.exe /c sc stop StarDeskService & taskkill /F /IM StarDeskServer.exe /IM StarDeskHealthd.exe","undo":"cmd.exe /c sc start StarDeskService","elevated":true}]'
+
+    foreach ($confPath in $confPaths) {
+        if (Test-Path $confPath) {
+            $conf = Get-Content $confPath -Raw
+            if ($conf -match "(?m)^global_prep_cmd\s*=") {
+                $conf = $conf -replace "(?m)^global_prep_cmd\s*=.*$", $prepCmdStr
+            } else {
+                $conf += "`n$prepCmdStr"
+            }
+            Set-Content -Path $confPath -Value $conf.Trim() -NoNewline
+            Write-Host "  [+] Configured Apollo global_prep_cmd in $confPath (auto-suspends StarDesk during streams)." -ForegroundColor Green
         }
     }
 }
@@ -461,6 +507,10 @@ function Show-Menu {
     Write-Host " [6] StarDesk: Restore Stock Original SDIddDriver" -ForegroundColor White
     Write-Host "     - Restores original unpatched SDIddDriver.dll from backup" -ForegroundColor Gray
     Write-Host ""
+    Write-Host " [7] Fix StarDesk Background Interference (Disables physical screen hijacking)" -ForegroundColor White
+    Write-Host "     - Stops StarDeskService & StarDeskServer.exe from auto-enabling physical monitor" -ForegroundColor Gray
+    Write-Host "     - Sets StarDeskService to Manual startup & injects global_prep_cmd into Apollo" -ForegroundColor Gray
+    Write-Host ""
     Write-Host " [0] Exit" -ForegroundColor Red
     Write-Host "==========================================================================" -ForegroundColor Cyan
 }
@@ -469,7 +519,7 @@ function Show-Menu {
 $choice = $Option
 if (-not $choice) {
     Show-Menu
-    $choice = Read-Host "Enter your choice [0-6]"
+    $choice = Read-Host "Enter your choice [0-7]"
 }
 
 switch ($choice) {
@@ -508,6 +558,11 @@ switch ($choice) {
         Write-Host "`nExecuting: Restore StarDesk Stock Driver..." -ForegroundColor Yellow
         Restore-StarDeskStock
         Write-Host "`nStarDesk restored to stock driver." -ForegroundColor Green
+    }
+    { $_ -in "7", "FixStarDeskConflict" } {
+        Write-Host "`nExecuting: StarDesk Background Conflict Fix..." -ForegroundColor Cyan
+        Fix-StarDeskDisplayConflict
+        Write-Host "`nStarDesk conflict resolved successfully!" -ForegroundColor Green
     }
     { $_ -in "0", "q", "exit" } {
         Write-Host "`nExiting VDA Tool." -ForegroundColor Yellow
